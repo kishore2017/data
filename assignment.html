@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Data Visualization</title>
+    <style>
+
+        body {
+            width: 1000px;
+        }
+
+        h1 {
+            font: small-caps 300 2em/1.5em 'Open Sans', sans-serif;
+            margin: 20px auto 0;
+            padding: 0;
+        }
+
+        .land {
+            fill: #ccc;
+        }
+
+        .focus circle {
+            fill: #F1F3F3;
+            stroke: #6F257F;
+            stroke-width: 5px;
+        }
+
+        .hover-line {
+            stroke: #6F257F;
+            stroke-width: 2px;
+            stroke-dasharray: 3, 3;
+        }
+
+        .border-states {
+            stroke: #fff;
+            fill: none;
+            stroke-linejoin: round;
+            stroke-linecap: round;
+        }
+
+        .states {
+            fill: gray;
+            stroke: none;
+
+        }
+
+        .states2 {
+            fill: gray;
+            stroke: #fff;
+
+        }
+
+        .bubble {
+            fill: red;
+            fill-opacity: .5;
+        }
+
+        .symbol {
+            fill: steelblue;
+            fill-opacity: .8;
+            stroke: #fff;
+        }
+
+        .hover {
+            stroke: #666;
+            fill-opacity: .8;
+        }
+
+        div.relative {
+            position: relative;
+            left: 40px;
+            top: 150px;
+        }
+
+        path {
+            stroke: steelblue;
+            stroke-width: 1;
+            fill: none;
+        }
+
+        .axis {
+            shape-rendering: crispEdges;
+        }
+
+        .x.axis line {
+            stroke: lightgrey;
+        }
+
+        .x.axis .minor {
+            stroke-opacity: .5;
+        }
+
+        .x.axis path {
+            display: none;
+        }
+
+        .y.axis line,
+        .y.axis path {
+            fill: none;
+            stroke: #000;
+        }
+
+        div.ex1 {
+            width: 10px;
+            position: relative;
+            left: 40px;
+            top: 150px;
+        }
+
+        div.ex2 {
+            left: 10px;
+            top: 50px;
+            position: relative;
+            max-width: 500px;
+        }
+    </style>
+    <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.7.2/themes/ui-lightness/jquery-ui.css"
+        type="text/css" media="all" />
+
+</head>
+
+<body>
+    <h1>Association between Poverty and Crime</h1>
+    <script src="https://d3js.org/d3.v3.min.js"></script>
+    <script src="https://d3js.org/topojson.v2.min.js"></script>
+    <script src="https://d3js.org/d3-queue.v3.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.23/jquery-ui.min.js"></script>
+    
+    <br>
+    <br>
+    <br>
+    <div id="p1" class="ex2">
+        <p> Many people think that poverty and crime are directly related. In this article we will try to investigate
+            whether
+            poverty has any impact on crime. Crime data is taken from FBI Crime Statistics and poverty data from
+            USCensus.
+            We will use d3 to visualize the data and see if the visualization helps us providing any evidence to the
+            assumption.
+        </p>
+    </div>
+    <br>
+    <br>
+    <br>
+    <button onclick="displayGraph1()">Page 1</button>
+    <button onclick="displayGraph2()">Page 2</button>
+    <button onclick="displayGraph3()">Page 3</button>
+    <button onclick="displayGraph4()">Page 4</button>
+
+    <script>
+        function displayGraph1() {
+            $('#graph1').show();
+            $('#p1').show();
+            $('#graph2').hide();
+            $('#graph3').hide();
+            $('#slider-range').hide();
+            $('#graph4').hide();
+
+        }
+        function displayGraph2() {
+            $('#graph1').hide();
+            // $('#p1').hide();
+
+            $('#graph2').show();
+            $('#graph3').hide();
+            $('#slider-range').hide();
+            $('#graph4').hide();
+
+        }
+        function displayGraph4() {
+            $('#graph1').hide();
+            // $('#p1').hide();
+
+            $('#graph2').hide();
+            $('#graph3').show();
+            $('#slider-range').show();
+            $('#graph4').hide();
+
+        }
+        function displayGraph3() {
+            $('#graph1').hide();
+            // $('#p1').hide();
+
+            $('#graph2').hide();
+            $('#graph3').hide();
+            $('#slider-range').hide();
+            $('#graph4').show();
+        }
+
+    </script>
+    <div id="graph1" style="display:show; top: 100px; left: 600px; position: relative;">
+
+        <script>
+
+            var width1 = 1000,
+                height1 = 600;
+
+            var path1 = d3.geo.path()
+                .projection(null)
+
+            var radius1 = d3.scale.sqrt()
+                .domain([0, 3e6])
+                .range([0, 60]);
+
+            var arc1 = d3.svg.arc()
+                .outerRadius(radius1)
+
+            var svg1 = d3.select("#graph1").append("svg")
+                .attr("width", width1)
+                .attr("height", height1);
+
+            var toolTip1 = d3.select('body')
+                .append('div')
+                .style('position', 'absolute')
+                .style('padding', '0 10px')
+                .style('background', '#fff')
+                .style('opacity', 0)
+                .style('font-family', 'Open Sans')
+                .style('z-index', 1000);
+
+
+            d3.json('https://raw.githubusercontent.com/kishore2017/data/master/uspoverty.json', function (error, usa1) {
+                if (error) return console.log(error);
+                buildMap(usa1);
+
+                //show data as layered bubbles
+                svg1.append("g")
+                    .attr("class", "bubble")
+                    .selectAll("circle")
+                    .data(topojson.feature(usa1, usa1.objects.counties).features
+                        .sort(function (a, b) { //sort population low to high
+                            return b.properties.population - a.properties.population;
+                        }) //sort
+                    ) //data
+                    .enter().append("circle")
+                    .on('mouseover', function (d, i) {
+                        d3.select(this).attr('class', 'hover')
+                    })
+                    .on('mouseout', function (d, i) {
+                        d3.select(this).attr('class', '')
+                    })
+                    .transition("")
+                    .delay(function (d, i) { return 10 * i; })
+                    .duration(30)
+                    .attr("transform", function (d) {
+                        return "translate(" + path1.centroid(d) + ")"; //Computes the projected centroid
+                    })
+                    .attr("r", function (d) {
+                        return radius1(d.properties.population); //radius var with input (domain) and output (range)
+                    })
+
+            }) //d3.json
+
+            function buildMap(usa1) {
+                //build the main land area
+                svg1.append('path')
+                    .datum(topojson.feature(usa1, usa1.objects.nation))
+                    .attr('class', 'land')
+                    .attr('d', path1);
+
+
+                svg1.selectAll('.states')
+                    // retrieve the features so that id is accessed
+                    .data(topojson.feature(usa1, usa1.objects.counties).features)
+                    .enter().append('path')
+                    .attr('id', function (d) { return d.id; })
+                    .attr("class", "states")
+                    .attr('d', path1)
+                    //add Tool Tip
+                    .on('mouseover', function (d, i) {
+                        toolTip1.transition()
+                            .style('opacity', .9)
+                            .style('left', (d3.event.pageX) + 'px')
+                            .style('top', (d3.event.pageY) + 'px')
+                        tempColor1 = this.style.fill; //store current color
+
+                        if (d.properties.name != null || d.properties.name != undefined) {
+                            toolTip1.html(d.properties.name + ", " + d.properties.population)
+                        } else {
+                            toolTip1.html("")
+                        }
+                    })
+                    .on('mouseout', function () {
+                        d3.select(this)
+                            .transition().delay(400).duration(800)
+                            .style('opacity', 1)
+                            .style('fill', tempColor1)
+                    });
+
+                //build internal state lines
+                svg1.append('path')
+                    .datum(topojson.mesh(usa1, usa1.objects.states, function (a, b) {
+                        return a !== b;
+                    })) //topojson.mesh
+                    .attr('class', 'border-states')
+                    .attr('d', path1);
+            }
+        </script>
+        <div style="display:show; top: 200px; left: -200px;">
+            Map shows Under 18 Population Living in Poverty by county, data from census bureau. Data is visually
+            represented with bubbles.
+            County names and poverty population figures are shown on mouseover where available.
+        </div>
+    </div>
+
+
+    <div id="graph2" style="display:none; top: 100px; left: 600px; position: relative;">
+
+        <script>
+            var width2 = 1000, height2 = 600;
+            var projection2 = d3.geo.albersUsa()
+                .translate([width2 / 2, height2 / 2])    // translate to center of screen
+                .scale([1250]);          // scale things down so see entire US
+            var path2 = d3.geo.path()
+                .projection(projection2);
+
+            var svg2 = d3.select("#graph2").append("svg")
+                .attr("width", width2)
+                .attr("height", height2);
+
+            d3.queue()
+                .defer(d3.json, "https://raw.githubusercontent.com/kishore2017/data/master/us.json")
+                .defer(d3.csv, "https://docs.google.com/spreadsheets/u/0/d/1hKa4b-lqzsvxw2Rg2XVPhWIjiVQLHvb6B28QYWJKtFc/export?format=csv&id=1hKa4b-lqzsvxw2Rg2XVPhWIjiVQLHvb6B28QYWJKtFc&gid=0")
+                .defer(d3.csv, "https://docs.google.com/spreadsheets/u/0/d/1xZiG54S09agXJwTzpDUHz1GwcOVkYFUJLN4ohdzoLvg/export?format=csv&id=1xZiG54S09agXJwTzpDUHz1GwcOVkYFUJLN4ohdzoLvg&gid=0")
+                .await(ready);
+
+            function ready(error, usa2, crime2, map2) {
+                if (error) throw error;
+                svg2.selectAll("states")
+                    .data(topojson.feature(usa2, usa2.objects.states).features)
+                    .enter().insert("path", ".graticule")
+                    .attr("class", "states2")
+                    .attr("d", path2);;
+
+                svg2.selectAll(".symbol")
+                    .data(map2)
+                    .enter().append("circle")
+                    .attr("class", "bubble")
+                    //add Tool Tip
+                    .on('mouseover', function (d, i) {
+                        toolTip1.transition()
+                            .style('opacity', .9)
+                            .style('left', (d3.event.pageX) + 'px')
+                            .style('top', (d3.event.pageY) + 'px')
+                        tempColor2 = this.style.fill; //store current color
+
+                        toolTip1.html(d.City + "," + d.State +
+                            "&#013; City Population: " + d.citypop +
+                            "&#013; Total Murders: " + d.Murder)
+                    })
+                    .on('mouseout', function () {
+                        d3.select(this)
+                            .transition().delay(400).duration(800)
+                            .style('opacity', 1)
+                            .style('fill', tempColor2)
+                    })
+                    .transition("")
+                    .delay(function (d, i) { return 10 * i; })
+                    .duration(300)
+                    .attr("cx", function (d) {
+                        return d.x = projection2([d.Long, d.Lat])[0];
+                    })
+                    .attr("cy", function (d) {
+                        return d.y = projection2([d.Long, d.Lat])[1];
+                    })
+                    .attr("r", function (d) { return d.Murder / 15 })
+                    .attr("fill", "red");
+            }
+        </script>
+        <div style="display:show; top: 200px; left: -200px;">
+            Map shows crimes happened in usa with cities over 100,000 population. Bubbles represent the data.
+            Low Bubble size represents the less murders and High Bubble size represents high murders.
+            City name, population and Murders are available on mouseover.
+        </div>
+
+    </div>
+    <div id="graph3" style="display:none; top: 100px; left: 600px; position: relative;">
+
+        <script>
+            var m = [80, 80, 80, 80]; // margins
+            var w = 1000 - m[1] - m[3]; // width
+            var h = 400 - m[0] - m[2]; // height
+
+            d3.queue()
+                .defer(d3.csv, "https://raw.githubusercontent.com/kishore2017/data/master/propertycrimerate.csv")
+                .defer(d3.csv, "https://raw.githubusercontent.com/kishore2017/data/master/povertyrate3.csv")
+                .await(lineChart);
+
+            function lineChart(error, pcr, poverty) {
+
+                var years = [1959, 1965, 1970, 1975, 1980, 1985, 1990, 1995, 1995, 2000, 2005, 2010, 2012];
+                var x = d3.scale.linear().domain([1959, 2012]).range([0, w]);
+                var y = d3.scale.linear().domain([1000, 6000]).range([h, 0]);
+
+                // define the 1st line
+                var valueline = d3.svg.line().interpolate("monotone")
+                    .x(function (d) { return x(d.Year); })
+                    .y(function (d) { return y(d.pcr); });
+
+                // Add an SVG element with the desired dimensions and margin.
+                var graph = d3.select("#graph3").append("svg:svg")
+                    .attr("width", w + m[1] + m[3])
+                    .attr("height", h + m[0] + m[2])
+                    .append("svg:g")
+                    .attr("transform", "translate(" + m[3] + "," + m[0] + ")");
+
+                // create yAxis
+                var xAxis = d3.svg.axis().scale(x).ticks(years.length).tickFormat(d3.format('0f'));;
+                // Add the x-axis.
+                graph.append("svg:g")
+                    .attr("class", "x axis")
+                    .attr("transform", "translate(0," + h + ")")
+                    .call(xAxis);
+
+                // create left yAxis
+                var yAxisLeft = d3.svg.axis().scale(y).ticks(4).orient("left");
+                // Add the y-axis to the left
+                graph.append("svg:g")
+                    .attr("class", "y axis")
+                    .attr("transform", "translate(-25,0)")
+                    .call(yAxisLeft);
+                graph.append("text")
+                    .attr("x", 400)
+                    .attr("y", 300)
+                    .style("text-anchor", "middle")
+                    .text("Year");
+                graph.append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", -5 - m[0])
+                    .attr("x", 0 - (h / 2))
+                    .attr("dy", "1em")
+                    .style("text-anchor", "middle")
+                    .text("Property Crime Rate");
+
+                var clip = graph.append("defs").append("svg:clipPath")
+                    .attr("id", "clip")
+                    .append("svg:rect")
+                    .attr("id", "clip-rect")
+                    .attr("x", "0")
+                    .attr("y", "0")
+                    .attr("width", w)
+                    .attr("height", h);
+
+                var path = graph.append("svg:path")
+                    .attr("class", "path")
+                    .style("stroke", "brown")
+                    .attr("clip-path", "url(#clip)")
+                    .attr("d", valueline(pcr));
+
+                function zoom(begin, end) {
+                    x.domain([begin, end - 1]);
+                    var t = graph.transition().duration(0);
+                    var size = end - begin;
+                    var step = size / 10;
+                    var ticks = [];
+                    for (var i = 0; i <= 10; i++) {
+                        ticks.push(Math.floor(begin + step * i));
+                    }
+                    xAxis.tickValues(ticks);
+                    t.select(".x.axis").call(xAxis);
+                    t.select('.path').attr("d", valueline(pcr));
+                }
+
+                $(function () {
+                    $("#slider-range").slider({
+                        range: true,
+                        min: 1959,
+                        max: 2012,
+                        values: [1000, 6000],
+                        slide: function (event, ui) {
+                            var begin = d3.min([ui.values[0], 2011]);
+                            var end = d3.max([ui.values[1], 0]);
+                            zoom(begin, end);
+                        }
+                    });
+                });
+            }
+        </script>
+        <div style="display:show; top: 120px; left: 600px;">
+                Plot shows historical view of property crime rate. Can drag and see how crime rate is at a certain period.
+        </div>
+            
+    </div>
+    <div id="slider-range" style="display:none; top: 110px; left: 600px; position: relative;"></div>
+
+    <div id="graph4" style="display:none; top: 100px; left: 600px; position: relative;">
+
+        <script>
+            var m = [80, 80, 80, 80]; // margins
+            var w = 1000 - m[1] - m[3]; // width
+            var h = 400 - m[0] - m[2]; // height
+
+            d3.queue()
+                .defer(d3.csv, "https://raw.githubusercontent.com/kishore2017/data/master/propertycrimerate.csv")
+                .defer(d3.csv, "https://raw.githubusercontent.com/kishore2017/data/master/povertyrate3.csv")
+                .await(lineChart);
+
+            function lineChart(error, pcr, poverty) {
+
+                var years = [1959, 1965, 1970, 1975, 1980, 1985, 1990, 1995, 1995, 2000, 2005, 2010, 2012];
+                var x = d3.scale.linear().domain([1959, 2016]).range([0, w]);
+                var y = d3.scale.linear().domain([1000, 6000]).range([h, 0]);
+
+                // define the 1st line
+                var valueline = d3.svg.line().interpolate("monotone")
+                    .x(function (d) { return x(d.Year); })
+                    .y(function (d) { return y(d.pcr); });
+
+                // Add an SVG element with the desired dimensions and margin.
+                var graph = d3.select("#graph4").append("svg:svg")
+                    .attr("width", w + m[1] + m[3])
+                    .attr("height", h + m[0] + m[2])
+                    .append("svg:g")
+                    .attr("transform", "translate(" + m[3] + "," + m[0] + ")");
+
+                // create yAxis
+                var xAxis = d3.svg.axis().scale(x).ticks(years.length).tickFormat(d3.format('0f'));;
+                // Add the x-axis.
+                graph.append("svg:g")
+                    .attr("class", "x axis")
+                    .attr("transform", "translate(0," + h + ")")
+                    .call(xAxis);
+
+                // create left yAxis
+                var yAxisLeft = d3.svg.axis().scale(y).ticks(4).orient("left");
+                // Add the y-axis to the left
+                graph.append("svg:g")
+                    .attr("class", "y axis")
+                    .attr("transform", "translate(-25,0)")
+                    .call(yAxisLeft);
+
+                var clip = graph.append("defs").append("svg:clipPath")
+                    .attr("id", "clip")
+                    .append("svg:rect")
+                    .attr("id", "clip-rect")
+                    .attr("x", "0")
+                    .attr("y", "0")
+                    .attr("width", w)
+                    .attr("height", h);
+
+                var y2 = d3.scale.linear().domain([0, 40]).range([h, 0]);
+                var valueline2 = d3.svg.line().interpolate("monotone")
+                    .x(function (d) { return x(d.year); })
+                    .y(function (d) { return y2(d.povertyrate); });
+
+                var yAxisRight = d3.svg.axis().scale(y2).ticks(6).orient("right");
+
+                graph.append("svg:g")
+                    .attr("class", "y axis")
+                    .attr("transform", "translate(" + (w + 25) + ",0)")
+                    .call(yAxisRight);
+
+                graph.append("text")
+                    .attr("x", 400)
+                    .attr("y", 300)
+                    .style("text-anchor", "middle")
+                    .text("Year");
+
+                graph.append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", -5 - m[0])
+                    .attr("x", 0 - (h / 2))
+                    .attr("dy", "1em")
+                    .style("text-anchor", "middle")
+                    .text("Property Crime Rate");
+
+                graph.append("text")
+                    .attr("transform", "rotate(90)")
+                    .attr("y", -910)
+                    .attr("x", 20 + (h / 2))
+                    .attr("dy", "1em")
+                    .style("text-anchor", "middle")
+                    .text("Poverty Rate");
+
+                var headers = ["Poverty", "Crime Rate"];
+                var color = d3.scale.ordinal()
+                    .domain(headers)
+                    .range(["red", "blue"]);
+
+                var legend = graph.selectAll(".legend")
+                    .data(headers)
+                    .enter().append("g")
+                    .attr("class", "legend")
+                    .attr("transform", function (d, i) { return "translate(-20," + i * 20 + ")"; });
+
+                legend.append("rect")
+                    .attr("x", w - 18)
+                    .attr("width", 18)
+                    .attr("height", 18)
+                    .style("fill", color);
+
+                legend.append("text")
+                    .attr("x", w - 24)
+                    .attr("y", 9)
+                    .attr("dy", ".35em")
+                    .style("text-anchor", "end")
+                    .text(function (d) { return d; });
+
+                var focus = graph.append("g")
+                    .attr("class", "focus")
+                    .style("display", "none");
+
+                focus.append("line")
+                    .attr("class", "x-hover-line hover-line")
+                    .attr("y1", 0)
+                    .attr("y2", h);
+
+                focus.append("line")
+                    .attr("class", "y-hover-line hover-line")
+                    .attr("x1", w)
+                    .attr("x2", w);
+
+                focus.append("circle")
+                    .attr("r", 7.5);
+
+                focus.append("text")
+                    .attr("x", 15)
+                    .attr("dy", ".31em");
+
+                var path = graph.append("svg:path")
+                    .attr("class", "path")
+                    .attr("d", valueline(pcr));
+
+                var path = graph.append("svg:path")
+                    .attr("class", "path")
+                    .style("stroke", "red")
+                    .attr("d", valueline2(poverty));
+
+            }
+        </script>
+        <div style="display:show; top: 120px; left: 600px;">
+                Plot shows historical view of poverty and crime rate. We can see that crime
+                rate has increased even when poverty rate has decreased. This can show that
+                poverty and crime has no impact on each other.
+        </div>
+        
+    </div>
+</body>
+
+</html>
